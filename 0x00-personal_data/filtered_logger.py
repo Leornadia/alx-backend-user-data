@@ -1,25 +1,16 @@
 #!/usr/bin/env python3
-"""
-Module for filtering PII data
-"""
-import logging
-import re
-import mysql.connector
 import os
-from typing import Tuple, List, Any
+import mysql.connector
+from mysql.connector import connection
+import logging
+from typing import List
 
+PII_FIELDS = ("name", "email", "phone", "ssn", "password")
 
-def filter_datum(fields: List[str], redaction: str, message: str, separator: str) -> str:
-  """
-  Returns the log message obfuscated.
-  """
-  for field in fields:
-    message = re.sub(f'{field}=([^;]*)', f'{field}={redaction}', message)
-  return message
 
 class RedactingFormatter(logging.Formatter):
     """ Redacting Formatter class
-        """
+    """
 
     REDACTION = "***"
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
@@ -30,52 +21,70 @@ class RedactingFormatter(logging.Formatter):
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
-        """
-        Filters values in incoming log records.
-        """
-        return filter_datum(self.fields, self.REDACTION, record.getMessage(), self.SEPARATOR)
+        record.msg = filter_datum(self.fields, self.REDACTION, record.msg, self.SEPARATOR)
+        return super(RedactingFormatter, self).format(record)
 
-PII_FIELDS: Tuple[str, ...] = ("name", "email", "phone", "ssn", "password")
+
+def filter_datum(fields: List[str], redaction: str, message: str, separator: str) -> str:
+    """ Returns the log message obfuscated """
+    for field in fields:
+        message = re.sub(rf'{field}=[^{separator}]*', f'{field}={redaction}', message)
+    return message
+
 
 def get_logger() -> logging.Logger:
-    """
-    Returns a logging.Logger object.
-    """
+    """ Returns a logging.Logger object """
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
     logger.propagate = False
-    handler = logging.StreamHandler()
-    handler.setFormatter(RedactingFormatter(PII_FIELDS))
-    logger.addHandler(handler)
+
+    stream_handler = logging.StreamHandler()
+    formatter = RedactingFormatter(fields=PII_FIELDS)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
     return logger
 
-def get_db() -> mysql.connector.connection.MySQLConnection:
-    """
-    Returns a connector to the database.
-    """
-    username = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
-    password = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
-    host = os.getenv("PERSONAL_DATA_DB_HOST", "localhost")
-    database = os.getenv("PERSONAL_DATA_DB_NAME")
-    return mysql.connector.connect(
+
+def get_db() -> connection.MySQLConnection:
+    """ Connects to the database using credentials from environment variables """
+    username = os.getenv('PERSONAL_DATA_DB_USERNAME', 'root')
+    password = os.getenv('PERSONAL_DATA_DB_PASSWORD', '')
+    host = os.getenv('PERSONAL_DATA_DB_HOST', 'localhost')
+    database = os.getenv('PERSONAL_DATA_DB_NAME')
+
+    conn = mysql.connector.connect(
         user=username,
         password=password,
         host=host,
         database=database
     )
+    
+    return conn
+
 
 def main():
-    """
-    Main function.
-    """
+    """ Main function to retrieve and display all rows in the users table """
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM users;")
-    for row in cursor:
-        logger = get_logger()
-        logger.info(f"{row}")
+
+    # Execute the query to fetch all rows from the users table
+    cursor.execute("SELECT name, email, phone, ssn, password, ip, last_login, user_agent FROM users;")
+    
+    # Setup logger
+    logger = get_logger()
+
+    # Log each row with filtered data
+    for row in cursor.fetchall():
+        log_message = (
+            f"name={row[0]}; email={row[1]}; phone={row[2]}; ssn={row[3]}; "
+            f"password={row[4]}; ip={row[5]}; last_login={row[6]}; user_agent={row[7]};"
+        )
+        logger.info(log_message)
+    
     cursor.close()
     db.close()
 
 if __name__ == "__main__":
     main()
+
