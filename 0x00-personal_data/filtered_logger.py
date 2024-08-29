@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import re
+import logging
 from typing import List
+from re import sub
 
 def filter_datum(fields: List[str], redaction: str, message: str, separator: str) -> str:
     """
@@ -15,20 +16,32 @@ def filter_datum(fields: List[str], redaction: str, message: str, separator: str
     Returns:
         str: The obfuscated log message.
     """
-    # Create a regex pattern that matches the specified fields followed by their values
-    pattern = r'(' + '|'.join(re.escape(field) for field in fields) + r')=' + r'[^' + re.escape(separator) + r']*'
-    
-    # Replace the matched values with the redaction string
-    return re.sub(pattern, lambda m: f'{m.group(1)}={redaction}', message)
+    pattern = f'({"|".join(fields)})=.*?(?={separator}|$)'
+    return sub(pattern, lambda m: f'{m.group(1)}={redaction}', message)
 
-# Example usage
-if __name__ == "__main__":
-    fields = ["password", "date_of_birth"]
-    messages = [
-        "name=egg;email=eggmin@eggsample.com;password=eggcellent;date_of_birth=12/12/1986;",
-        "name=bob;email=bob@dylan.com;password=bobbycool;date_of_birth=03/04/1993;"
-    ]
-    
-    for message in messages:
-        print(filter_datum(fields, 'xxx', message, ';'))
+class RedactingFormatter(logging.Formatter):
+    """ Redacting Formatter class
+    """
+
+    REDACTION = "***"
+    FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
+    SEPARATOR = ";"
+
+    def __init__(self, fields: List[str]):
+        """ Initialize the formatter with fields to redact """
+        super(RedactingFormatter, self).__init__(self.FORMAT)
+        self.fields = fields
+
+    def format(self, record: logging.LogRecord) -> str:
+        """
+        Format the log record, obfuscating PII fields.
+        
+        Args:
+            record (logging.LogRecord): The log record.
+
+        Returns:
+            str: The formatted log message with obfuscated PII fields.
+        """
+        record.msg = filter_datum(self.fields, self.REDACTION, record.msg, self.SEPARATOR)
+        return super(RedactingFormatter, self).format(record)
 
