@@ -5,8 +5,9 @@ from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
 from os import getenv
 
-# Import the appropriate authentication class based on the environment variable
+# Import the appropriate authentication classes
 from api.v1.auth.auth import Auth
+from api.v1.auth.basic_auth import BasicAuth
 
 app = Flask(__name__)
 CORS(app)
@@ -17,7 +18,9 @@ auth = None
 # Load authentication type from environment variable
 AUTH_TYPE = getenv("AUTH_TYPE")
 
-if AUTH_TYPE == "auth":
+if AUTH_TYPE == "basic_auth":
+    auth = BasicAuth()
+else:
     auth = Auth()
 
 # Define routes
