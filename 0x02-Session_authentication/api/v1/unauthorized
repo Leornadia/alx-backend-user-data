@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+from flask import abort, jsonify
+from api.v1.views import app_views
+
+@app_views.route('/api/v1/unauthorized', methods=['GET'], strict_slashes=False)
+def unauthorized():
+    """Endpoint that triggers a 401 error."""
+    abort(401)
+
