@@ -74,7 +74,7 @@ class DB:
         Raises:
             ValueError: If an argument does not correspond to a user attribute.
         """
-        user = self.find_user_by(id=user_id)
+        user = self._session.query(User).filter_by(id=user_id).first()
         if user is None:
             raise ValueError(f"User with ID {user_id} not found.")
 
