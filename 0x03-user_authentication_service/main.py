@@ -105,7 +105,7 @@ class DB:
         Raises:
             ValueError: If an argument does not correspond to a user attribute.
         """
-        user = self.find_user_by(id=user_id)
+        user = self._session.query(User).filter_by(id=user_id).first()
         if user is None:
             raise ValueError(f"User with ID {user_id} not found.")
 
@@ -118,6 +118,12 @@ class DB:
 
 # Main testing part
 if __name__ == "__main__":
+    # Print table schema
+    print(User.__tablename__)
+
+    for column in User.__table__.columns:
+        print("{}: {}".format(column, column.type))
+
     # Create an instance of the DB class
     my_db = DB()
 
@@ -146,3 +152,15 @@ if __name__ == "__main__":
         print(find_user.id)
     except InvalidRequestError:
         print("Invalid request")
+
+    # Update the user's password
+    try:
+        my_db.update_user(user_1.id, hashed_password='NewPwd')
+        print("Password updated")
+
+        # Print the updated user's attributes
+        updated_user = my_db.find_user_by(id=user_1.id)
+        print(f"Updated User: id={updated_user.id}, email={updated_user.email}, hashed_password={updated_user.hashed_password}, session_id={updated_user.session_id}, reset_token={updated_user.reset_token}")
+
+    except ValueError:
+        print("Error")
