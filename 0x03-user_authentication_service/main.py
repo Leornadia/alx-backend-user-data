@@ -29,13 +29,13 @@ class DB:
         """Initialize a new DB instance."""
         # Create a new SQLite engine instance with echo set to False
         self._engine = create_engine("sqlite:///a.db", echo=False)
-        
+
         # Drop all tables in case they already exist (start fresh)
         Base.metadata.drop_all(self._engine)
-        
+
         # Create all tables defined in Base (in this case, the User table)
         Base.metadata.create_all(self._engine)
-        
+
         # Initialize the session to None
         self.__session = None
 
@@ -50,7 +50,7 @@ class DB:
     def add_user(self, email: str, hashed_password: str) -> User:
         """
         Adds a new user to the database.
-        
+
         Args:
             email (str): The email of the user.
             hashed_password (str): The hashed password of the user.
@@ -60,28 +60,28 @@ class DB:
         """
         # Create a new User instance
         new_user = User(email=email, hashed_password=hashed_password)
-        
+
         # Add the user to the session
         self._session.add(new_user)
-        
+
         # Commit the session to save the user to the database
         self._session.commit()
-        
+
         # Refresh the session to update the new user object with the database-generated ID
         self._session.refresh(new_user)
-        
+
         return new_user
 
     def find_user_by(self, **kwargs) -> User:
         """
         Find a user by arbitrary keyword arguments.
-        
+
         Args:
             **kwargs: Arbitrary keyword arguments to filter the query.
-        
+
         Returns:
             User: The first User object found that matches the criteria.
-        
+
         Raises:
             NoResultFound: If no user is found.
             InvalidRequestError: If invalid query arguments are passed.
@@ -95,6 +95,26 @@ class DB:
         except InvalidRequestError:
             raise InvalidRequestError("Invalid arguments provided for query.")
 
+    def update_user(self, user_id: int, **kwargs: str) -> None:
+        """Updates a user's attributes in the database.
+
+        Args:
+            user_id (int): The ID of the user to update.
+            **kwargs: Keyword arguments representing the attributes to update.
+
+        Raises:
+            ValueError: If an argument does not correspond to a user attribute.
+        """
+        user = self.find_user_by(id=user_id)
+        if user is None:
+            raise ValueError(f"User with ID {user_id} not found.")
+
+        for key, value in kwargs.items():
+            if not hasattr(user, key):
+                raise ValueError(f"Invalid attribute: {key}")
+            setattr(user, key, value)
+
+        self._session.commit()
 
 # Main testing part
 if __name__ == "__main__":
@@ -126,4 +146,3 @@ if __name__ == "__main__":
         print(find_user.id)
     except InvalidRequestError:
         print("Invalid request")
-
