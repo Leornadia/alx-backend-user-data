@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
 
-from user import Base, User  # Import Base and User models
+from user import Base, User 
 
 
 class DB:
@@ -15,16 +15,13 @@ class DB:
 
     def __init__(self) -> None:
         """Initialize a new DB instance."""
-        # Create a new SQLite engine instance with echo set to False
+
         self._engine = create_engine("sqlite:///a.db", echo=False)
         
-        # Drop all tables in case they already exist (start fresh)
         Base.metadata.drop_all(self._engine)
         
-        # Create all tables defined in Base (in this case, the User table)
         Base.metadata.create_all(self._engine)
         
-        # Initialize the session to None
         self.__session = None
 
     @property
@@ -46,16 +43,13 @@ class DB:
         Returns:
             User: The newly created User object.
         """
-        # Create a new User instance
+    
         new_user = User(email=email, hashed_password=hashed_password)
-        
-        # Add the user to the session
+
         self._session.add(new_user)
         
-        # Commit the session to save the user to the database
         self._session.commit()
         
-        # Refresh the session to update the new user object with the database-generated ID
         self._session.refresh(new_user)
         
         return new_user
